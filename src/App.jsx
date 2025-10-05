@@ -17,7 +17,7 @@ import Recipes from "./pages/Recipes";
 import HealthDashboard from "./pages/HealthDashboard";
 import Documentation from "./pages/Documentation";
 import PaymentPage from "./pages/PaymentPage";
-import Layout from "./components/layout/layout";
+import Layout from "./components/layout/Layout";
 import Settings from "./pages/Settings";
 // import AddRecipe from "./pages/AddRecipe"; // 🔥 Retsept qo‘shish sahifasi
 
