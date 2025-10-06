@@ -22,7 +22,7 @@ import { motion } from "framer-motion";
 
 // 🛑 MUHIM: Bu yerga o'zingizning TO'G'RI OpenRouter API kalitingizni kiriting!
 const OPENROUTER_API_KEY =
-  "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";
+  "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";
 
 // Rasmlar uchun Google Search API chaqiruvi simulyatsiyasi:
 const searchForImage = async (query) => {
