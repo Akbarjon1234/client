@@ -24,12 +24,15 @@ import {
   getDoc,
 } from "firebase/firestore";
 
-// isPremiumUser prop-i qo'shildi va defolt qiymati FALSE
+/**
+ * Retsept kartochkasi komponenti.
+ * Premium cheklovini isPremium va isPremiumUser prop-lari orqali boshqaradi.
+ */
 const RecipeCard = ({
   recipe,
   onViewDetails,
   currentUserId,
-  isPremiumUser = false, // Bu prop asosiy sababchi
+  isPremiumUser = false, // Bu prop MUHIM! Foydalanuvchi obunachi bo'lsa, uni TRUE yuboring.
 }) => {
   // Retsept nomini to'g'ri aniqlash
   const recipeName = recipe.name || recipe.title || "Noma'lum Retsept";
@@ -37,7 +40,7 @@ const RecipeCard = ({
     id,
     imageUrl,
     totalTime,
-    isPremium, // Retsept premium ekanligini bildiradi
+    isPremium, // Retsept premium ekanligini bildiradi (true/false)
     averageRating,
     likesCount,
     description,
@@ -56,7 +59,7 @@ const RecipeCard = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [aiGeneratedData, setAiGeneratedData] = useState(null);
 
-  // AI tomonidan ma'lumotlarni generatsiya qilish (O'zgartirishsiz)
+  // AI tomonidan ma'lumotlarni generatsiya qilish (O'zgartirishsiz qoldi)
   const generateAIData = (recipeData) => {
     const recipeName = recipeData.name || recipeData.title || "";
     const ingredients = recipeData.ingredients || "";
@@ -229,7 +232,7 @@ const RecipeCard = ({
     };
   };
 
-  // Load user's previous interactions va AI ma'lumotlari (O'zgartirishsiz)
+  // Foydalanuvchi interaktsiyalarini va AI ma'lumotlarini yuklash
   useEffect(() => {
     const loadUserInteractions = async () => {
       if (!currentUserId) return;
@@ -250,14 +253,13 @@ const RecipeCard = ({
       }
     };
 
-    // AI ma'lumotlarini generatsiya qilish
     const aiData = generateAIData(recipe);
     setAiGeneratedData(aiData);
 
     loadUserInteractions();
   }, [id, currentUserId, recipe]);
 
-  // Handle like/unlike with Firebase (O'zgartirishsiz)
+  // Like/Unlike qilish
   const handleLikeClick = async () => {
     if (!currentUserId) {
       alert("Iltimos, avval tizimga kiring!");
@@ -287,7 +289,7 @@ const RecipeCard = ({
 
       setLocalIsLiked(isLiking);
 
-      // Update analytics
+      // Analyticsni yangilash
       await updateDoc(
         doc(db, "recipeAnalytics", id),
         {
@@ -305,30 +307,35 @@ const RecipeCard = ({
     }
   };
 
-  // Handle view details - PREMIUM CHEKLOVINI QO'SHISH LOGIKASI
+  // Retsept detallarini ko'rish (PREMIUM CHEKLOV ASOSIY JOYI)
   const handleViewDetails = (e) => {
     e.stopPropagation();
 
-    // Premium retsept va foydalanuvchi obunachi bo'lmasa, ogohlantirish berish
-    // isPremiumUser TRUE bo'lsa, qulf cheklovi o'tib ketadi.
+    // Premium retseptni tekshirish
     if (isPremium && !isPremiumUser) {
       alert(
         "Bu retsept PREMIUM hisoblanadi. Uni ko'rish uchun obuna bo'lishingiz kerak!"
       );
-      // Bu yerda foydalanuvchini obuna sahifasiga yo'naltirishingiz mumkin
+      // Agar 'onViewDetails' prop-i berilgan bo'lsa, u yerda obuna sahifasiga yo'naltirish mumkin
+      if (onViewDetails) {
+        onViewDetails(recipe, true); // True - obuna kerakligini bildiradi
+      }
       return;
     }
 
-    // Agar foydalanuvchi premium bo'lsa, yoki retsept premium bo'lmasa, modal ochiladi
+    // Agar obunachi bo'lsa yoki retsept premium bo'lmasa, modal ochiladi
     setIsModalOpen(true);
+    if (onViewDetails) {
+      onViewDetails(recipe, false);
+    }
   };
 
-  // Close modal (O'zgartirishsiz)
+  // Modalni yopish
   const handleCloseModal = () => {
     setIsModalOpen(false);
   };
 
-  // Format ingredients string to array (O'zgartirishsiz)
+  // Ingredientlar satrini massivga formatlash
   const formatIngredients = (ingredientsString) => {
     if (!ingredientsString) return [];
     return ingredientsString
@@ -337,10 +344,10 @@ const RecipeCard = ({
       .filter((ing) => ing);
   };
 
-  // Format cooking steps (O'zgartirishsiz)
+  // Tayyorlash bosqichlarini formatlash
   const formatCookingSteps = (content) => {
     if (!content) return [];
-    // Split by new lines and filter empty lines
+    // Yangi qatorlar bo'yicha ajratish
     return content
       .split("\n")
       .filter((step) => step.trim())
@@ -350,7 +357,7 @@ const RecipeCard = ({
   const ingredientsList = formatIngredients(ingredients);
   const cookingSteps = formatCookingSteps(fullContent);
 
-  // Retseptni ko'rish tugmasi matni va holatini aniqlash
+  // Retseptni ko'rish tugmasi holati va matnini aniqlash
   const isViewButtonDisabled = isPremium && !isPremiumUser;
   const viewButtonText = isViewButtonDisabled
     ? "Premium Obuna Kerak"
@@ -401,7 +408,7 @@ const RecipeCard = ({
             </div>
           )}
 
-          {/* AI Generated Badges (O'zgartirishsiz) */}
+          {/* AI Generated Badges */}
           {aiGeneratedData && (
             <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
               {aiGeneratedData.isHealthy && (
@@ -416,7 +423,7 @@ const RecipeCard = ({
             </div>
           )}
 
-          {/* Action Buttons Overlay (O'zgartirishsiz) */}
+          {/* Action Buttons Overlay */}
           <div className="absolute top-16 left-4 flex gap-2 z-10">
             {/* Like Button */}
             <button
@@ -439,7 +446,7 @@ const RecipeCard = ({
             </button>
           </div>
 
-          {/* Bottom Info Bar (O'zgartirishsiz) */}
+          {/* Bottom Info Bar */}
           <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center z-10">
             {/* Time */}
             <div className="flex items-center text-white font-semibold bg-black/30 backdrop-blur-md px-3 py-2 rounded-full">
@@ -461,7 +468,7 @@ const RecipeCard = ({
 
         {/* Content Section */}
         <div className="p-6 space-y-4 bg-gradient-to-b from-white to-gray-50/50">
-          {/* Title and Description (O'zgartirishsiz) */}
+          {/* Title and Description */}
           <div className="space-y-3">
             <h3 className="text-xl font-bold text-gray-900 line-clamp-2 leading-tight group-hover:text-green-700 transition-colors duration-300">
               {recipeName}
@@ -474,7 +481,7 @@ const RecipeCard = ({
             )}
           </div>
 
-          {/* AI Generated Info (O'zgartirishsiz) */}
+          {/* AI Generated Info */}
           {aiGeneratedData && (
             <div className="flex justify-between items-center text-xs text-gray-500 bg-gray-50 p-3 rounded-xl">
               <div className="flex items-center">
@@ -497,11 +504,11 @@ const RecipeCard = ({
             onClick={handleViewDetails}
             disabled={isViewButtonDisabled}
             className={`w-full py-3.5 rounded-2xl font-bold transition-all duration-300 shadow-lg active:scale-[0.98] active:shadow-none group/btn relative overflow-hidden
-                            ${
-                              isViewButtonDisabled
-                                ? "bg-gray-400 text-gray-700 cursor-not-allowed shadow-gray-200/50" // Premium bo'lmaganlar uchun
-                                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-green-200/50 hover:shadow-xl hover:shadow-green-300/50" // Oddiy
-                            }`}
+							${
+                isViewButtonDisabled
+                  ? "bg-gray-400 text-gray-700 cursor-not-allowed shadow-gray-200/50" // Premium bo'lmaganlar uchun
+                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-green-200/50 hover:shadow-xl hover:shadow-green-300/50" // Oddiy
+              }`}
           >
             <span className="relative flex items-center justify-center gap-2 text-white">
               {isPremium && !isPremiumUser ? (
@@ -530,7 +537,7 @@ const RecipeCard = ({
           )}
         </div>
 
-        {/* Hover Effect Border (O'zgartirishsiz) */}
+        {/* Hover Effect Border */}
         <div className="absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-green-200/30 transition-all duration-500 pointer-events-none" />
       </div>
 
@@ -538,7 +545,7 @@ const RecipeCard = ({
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal Header - Kichik rasm va chekkada (O'zgartirishsiz) */}
+            {/* Modal Header */}
             <div className="relative p-6 pb-0 flex items-start gap-4 flex-shrink-0">
               {/* Kichik rasm */}
               <div className="relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg">
@@ -556,17 +563,17 @@ const RecipeCard = ({
                   }}
                 />
 
-                {/* Premium Badge - Modal kichik rasm ustida. Premium bo'lsa ko'rsatilsin, agar foydalanuvchi obunachi bo'lsa qulf belgisi ko'rinmaydi. */}
+                {/* Premium Badge - Modal kichik rasm ustida */}
                 {isPremium && (
                   <div className="absolute top-1 right-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center shadow-lg">
-                    {/* Premium foydalanuvchilar uchun faqat PREMIUM yozuvi qolsin, qulf belgisi olib tashlandi */}
+                    {/* Qulf faqat obunachi bo'lmaganlarga ko'rinadi */}
                     {!isPremiumUser && <Lock className="w-2 h-2 mr-1" />}
                     PREMIUM
                   </div>
                 )}
               </div>
 
-              {/* Title va asosiy ma'lumotlar (O'zgartirishsiz) */}
+              {/* Title va asosiy ma'lumotlar */}
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
                   <h1 className="text-2xl font-bold text-gray-900 truncate pr-8">
@@ -667,7 +674,7 @@ const RecipeCard = ({
             </div>
 
             {/* Modal Content - PREMIUM CHEKLOVI */}
-            {/* ASOSIY TUZATISH JOYI: isPremiumUser TRUE bo'lsa, bu blok o'tkazib yuboriladi */}
+            {/* Obunachi bo'lmasa qulflangan sahifani ko'rsatish */}
             {isPremium && !isPremiumUser ? (
               <div className="flex-1 p-6 flex flex-col items-center justify-center bg-gray-50/50">
                 <Lock className="w-16 h-16 text-amber-500 mb-4" />
@@ -749,7 +756,7 @@ const RecipeCard = ({
               </div>
             )}
 
-            {/* Modal Footer (O'zgartirishsiz) */}
+            {/* Modal Footer */}
             <div className="border-t border-gray-200 p-4 bg-gray-50 flex-shrink-0">
               <div className="flex justify-between items-center">
                 <div className="flex items-center">

@@ -20,9 +20,10 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { motion } from "framer-motion";
 
-// 🛑 MUHIM: Bu yerga o'zingizning TO'G'RI OpenRouter API kalitingizni kiriting!
+// 🛑 XAVFSIZLIK OGOHLANTIRISHI: API kaliti endi .env faylidan emas, balki bevosita koddan olinadi.
+// O'zingizning API kalitingizni quyidagi qatorga qo'ying.
 const OPENROUTER_API_KEY =
-  "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";
+  "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";
 
 // Rasmlar uchun Google Search API chaqiruvi simulyatsiyasi:
 const searchForImage = async (query) => {
@@ -152,6 +153,7 @@ export default function Home() {
     let recipeCount = 0;
 
     for (const line of lines) {
+      // Yangi retseptni aniqlash: Raqam. Taom nomi: ...
       if (line.match(/^\d+\.\s*Taom nomi:\s*(.*)/i)) {
         if (currentRecipe.name) {
           parsedRecipes.push({ ...currentRecipe, id: `recipe-${recipeCount}` });
@@ -181,6 +183,7 @@ export default function Home() {
       parsedRecipes.push(currentRecipe);
     }
 
+    // Agar tahlil qilish (parsing) ishlamasa, fallback qo'llash
     if (parsedRecipes.length === 0 && rawText.length > 50) {
       parsedRecipes.push({
         id: "recipe-fallback",
@@ -217,51 +220,35 @@ export default function Home() {
       return;
     }
 
+    // API kaliti tekshiruvi ham olib tashlanadi, chunki u endi serverda
     setError("");
     setLoading(true);
     setRecipes([]);
 
     try {
+      // 🔥 O'zgartirilgan: Serverless funksiyaga chaqiruv
       const response = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
+        "/api/generateRecipe", // Vercel'da /api/generateRecipe manziliga murojaat
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "HTTP-Referer": "http://localhost:5173",
-            "X-Title": "SmartChef AI",
           },
-          body: JSON.stringify({
-            model: "gpt-3.5-turbo",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "Siz professional oshxona yordamchisiz. Har doim o'zbek tilida, so'rovga javoban faqatgina kiritilgan mahsulotlarga mos keladigan, aniq 5 xil retseptni (Taom nomi, Qisqacha ta'rif, Usuli) quyidagi formatda ro'yxat shaklida qaytaring: {Raqam}. Taom nomi: [Nomi] Qisqacha ta'rif: [Qisqa ta'rif] Usuli: [To'liq tayyorlash usuli].",
-              },
-              { role: "user", content: combinedInput },
-            ],
-          }),
+          body: JSON.stringify({ combinedInput }), // Serverga faqat kiritilgan ingredientni yuborish
         }
       );
 
       if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        const msg =
-          errJson?.error?.message ||
-          `${response.status} ${response.statusText}`;
-        if (response.status === 401) {
-          throw new Error(
-            "API kaliti xato yoki eskirgan. OpenRouter kalitini va billingni tekshiring."
-          );
-        }
-        throw new Error(`AI xato: ${msg}`);
+        const errJson = await response.json();
+        throw new Error(
+          `AI xato: ${errJson.message || "Nomaʼlum xato yuz berdi."}`
+        );
       }
 
       const data = await response.json();
       const rawText = data?.choices?.[0]?.message?.content || "";
 
+      // ... qolgan mantiq (parsing va limitni yangilash) o'zgarishsiz qoladi
       const parsedRecipes = await parseAndFormatRecipes(rawText);
       setRecipes(parsedRecipes);
 
@@ -335,8 +322,8 @@ export default function Home() {
               <span className="text-green-400">AI</span>
             </h1>
             <p className="text-xl text-gray-700 mt-3 max-w-3xl mx-auto font-light">
-              Muzlatgichdagi bor narsalaringizni kiriting — biz siz uchun **5 ta
-              noyob retseptni** yaratib beramiz! 💡
+              Muzlatgichdagi bor narsalaringizni kiriting — biz siz uchun{" "}
+              <strong>5 ta noyob retseptni</strong> yaratib beramiz! 💡
             </p>
           </div>
         </div>

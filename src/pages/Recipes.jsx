@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { getAuth } from "firebase/auth";
 import { db, app } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore"; // getDoc import qilindi
 import RecipeCard from "../components/ui/RecipeCard";
 import { Filter, Search, ChefHat, Crown, Sparkles } from "lucide-react";
 
@@ -24,7 +24,43 @@ const Recipes = () => {
   const [user, loadingAuth] = useAuthState(auth);
   const currentUserId = user ? user.uid : null;
 
-  // 🔥 Retseptlarni Firestoredan yuklash funksiyasi
+  // 🔥 Premium holatini saqlash uchun yangi state
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const [loadingPremiumStatus, setLoadingPremiumStatus] = useState(true);
+
+  // =================================================================
+  // FUNKSIYA 1: FOYDALANUVCHINING PREMIUM HOLATINI TEKSHIRISH
+  // =================================================================
+  const checkPremiumStatus = useCallback(async () => {
+    if (!currentUserId) {
+      setIsPremiumUser(false);
+      setLoadingPremiumStatus(false);
+      return;
+    }
+
+    try {
+      // Foydalanuvchining ma'lumotlarini 'users' kollektsiyasidan yuklash
+      const userDocRef = doc(db, "users", currentUserId);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        // Haqiqiy loyihada bu 'isPremium' yoki 'subscriptionActive' kabi maydon bo'lishi kerak
+        setIsPremiumUser(userData.isPremium || false);
+      } else {
+        setIsPremiumUser(false);
+      }
+    } catch (err) {
+      console.error("Premium statusini yuklashda xato:", err);
+      setIsPremiumUser(false);
+    } finally {
+      setLoadingPremiumStatus(false);
+    }
+  }, [currentUserId]);
+
+  // =================================================================
+  // FUNKSIYA 2: RETSEPTLARNI YUKLASH
+  // =================================================================
   const fetchRecipes = useCallback(async () => {
     setLoadingRecipes(true);
     setError(null);
@@ -52,7 +88,17 @@ const Recipes = () => {
     }
   }, []);
 
-  // Filtr va qidiruvni qo'llash
+  // Effekt 1: Retseptlarni yuklash
+  useEffect(() => {
+    fetchRecipes();
+  }, [fetchRecipes]);
+
+  // Effekt 2: Foydalanuvchi o'zgarganda premium holatini tekshirish
+  useEffect(() => {
+    checkPremiumStatus();
+  }, [checkPremiumStatus]);
+
+  // Effekt 3: Filtr va qidiruvni qo'llash (o'zgartirishsiz qoldi)
   useEffect(() => {
     let result = recipes;
 
@@ -90,17 +136,13 @@ const Recipes = () => {
     setFilteredRecipes(result);
   }, [recipes, searchTerm, filterType, sortBy]);
 
-  useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
-
-  // Batafsil ko'rish funksiyasi
+  // Batafsil ko'rish funksiyasi (o'zgartirishsiz qoldi)
   const handleViewDetails = (recipe) => {
     console.log("Batafsil ko'rish:", recipe.name, "ID:", recipe.id);
     // navigate(`/recipe/${recipe.id}`);
   };
 
-  // Statistika hisoblash
+  // Statistika hisoblash (o'zgartirishsiz qoldi)
   const stats = {
     total: recipes.length,
     premium: recipes.filter((r) => r.isPremium).length,
@@ -108,13 +150,14 @@ const Recipes = () => {
   };
 
   // Autentifikatsiya yoki retseptlar yuklanayotganini ko'rsatish
-  if (loadingAuth || loadingRecipes) {
+  if (loadingAuth || loadingRecipes || loadingPremiumStatus) {
+    // loadingPremiumStatus qo'shildi
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin h-12 w-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-xl text-gray-600 font-semibold">
-            Retseptlar yuklanmoqda...
+            Ma'lumotlar yuklanmoqda...
           </p>
           <p className="text-gray-500 mt-2">Iltimos kuting</p>
         </div>
@@ -122,7 +165,7 @@ const Recipes = () => {
     );
   }
 
-  // Xato bo'lsa xabarni ko'rsatish
+  // Xato bo'lsa xabarni ko'rsatish (o'zgartirishsiz qoldi)
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
@@ -148,7 +191,7 @@ const Recipes = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 py-8">
       <div className="container mx-auto px-4">
-        {/* Sarlavha va Statistika */}
+        {/* Sarlavha va Statistika (o'zgartirishsiz qoldi) */}
         <div className="text-center mb-12">
           <div className="flex justify-center items-center gap-3 mb-4">
             <Sparkles className="w-8 h-8 text-green-500" />
@@ -162,7 +205,7 @@ const Recipes = () => {
           </p>
         </div>
 
-        {/* Statistika Kartalari */}
+        {/* Statistika Kartalari (o'zgartirishsiz qoldi) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-green-200 text-center">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -191,7 +234,7 @@ const Recipes = () => {
           </div>
         </div>
 
-        {/* Filtr va Qidiruv Paneli */}
+        {/* Filtr va Qidiruv Paneli (o'zgartirishsiz qoldi) */}
         <div className="bg-white rounded-2xl shadow-lg border border-green-200 p-6 mb-8">
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
             {/* Qidiruv */}
@@ -237,7 +280,7 @@ const Recipes = () => {
             </div>
           </div>
 
-          {/* Aktiv Filtrlar Ko'rsatkichlari */}
+          {/* Aktiv Filtrlar Ko'rsatkichlari (o'zgartirishsiz qoldi) */}
           <div className="flex flex-wrap gap-2 mt-4">
             {searchTerm && (
               <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
@@ -310,14 +353,15 @@ const Recipes = () => {
               </p>
             </div>
 
-            {/* Retseptlar Grid */}
+            {/* 🔥 RETSEPTLAR GRID - BU YERDAGI XATO TO'G'IRLANDI 🔥 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredRecipes.map((recipe) => (
                 <RecipeCard
-                  key={recipe.id}
-                  recipe={recipe}
+                  key={recipe.id} // Har doim key prop-ini qo'shing
+                  recipe={recipe} // ✅ To'g'ri ob'ekt yuborildi
                   onViewDetails={handleViewDetails}
-                  currentUserId={currentUserId}
+                  currentUserId={currentUserId} // ✅ Foydalanuvchi ID yuborildi
+                  isPremiumUser={isPremiumUser} // ✅ Premium holati yuborildi!
                 />
               ))}
             </div>
