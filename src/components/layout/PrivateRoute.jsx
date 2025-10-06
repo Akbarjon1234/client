@@ -1,19 +1,24 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+// src/components/layout/PrivateRoute.jsx
 
-// VAQTINCHALIK AUTH MANTIQI: Haqiqiy loyihada buni Firebase bilan almashtirasiz
-const useAuth = () => {
-    // Bu funksiya Firebase Auth dan foydalanib foydalanuvchi kirganmi yo'qmi tekshiradi
-    const [user, setUser] = React.useState(true); // Hozircha doim TRUE qilib qo'ydik
-    return user; 
-};
+import React from "react";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const PrivateRoute = () => {
-    const isAuthenticated = useAuth();
+  const { currentUser, loading } = useAuth();
 
-    // Agar foydalanuvchi tizimga kirgan bo'lsa, sahifani ko'rsatadi (Outlet)
-    // Aks holda, uni /login ga yo'naltiradi
-    return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  // 🔥 Loadingni bu yerda tekshirish shart emas, chunki AuthProvider uni butunlay bloklaydi.
+  // Agar bu yerga kelinsa, loading allaqachon false bo'ladi.
+
+  // Agar currentUser mavjud bo'lsa (tizimga kirgan)
+  if (currentUser) {
+    return <Outlet />;
+  }
+
+  // Agar currentUser mavjud bo'lmasa (tizimga kirmagan)
+  // "/login" sahifasiga yo'naltirish
+  // Bu navigatsiya faqatgina AuthProvider holatni NULL deb aniqlagandan keyin yuz beradi.
+  return <Navigate to="/login" replace />;
 };
 
 export default PrivateRoute;

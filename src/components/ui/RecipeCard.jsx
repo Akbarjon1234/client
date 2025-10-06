@@ -29,7 +29,7 @@ const RecipeCard = ({
   recipe,
   onViewDetails,
   currentUserId,
-  isPremiumUser = false,
+  isPremiumUser = false, // Bu prop asosiy sababchi
 }) => {
   // Retsept nomini to'g'ri aniqlash
   const recipeName = recipe.name || recipe.title || "Noma'lum Retsept";
@@ -310,6 +310,7 @@ const RecipeCard = ({
     e.stopPropagation();
 
     // Premium retsept va foydalanuvchi obunachi bo'lmasa, ogohlantirish berish
+    // isPremiumUser TRUE bo'lsa, qulf cheklovi o'tib ketadi.
     if (isPremium && !isPremiumUser) {
       alert(
         "Bu retsept PREMIUM hisoblanadi. Uni ko'rish uchun obuna bo'lishingiz kerak!"
@@ -318,6 +319,7 @@ const RecipeCard = ({
       return;
     }
 
+    // Agar foydalanuvchi premium bo'lsa, yoki retsept premium bo'lmasa, modal ochiladi
     setIsModalOpen(true);
   };
 
@@ -391,8 +393,8 @@ const RecipeCard = ({
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />
 
-          {/* Premium Badge */}
-          {isPremium && (
+          {/* Premium Badge - QULF FAQAT PREMIUM VA OBUNA YO'Q BO'LGANDA KO'RINSIN */}
+          {isPremium && !isPremiumUser && (
             <div className="absolute top-4 right-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center shadow-2xl z-10 transform group-hover:scale-105 transition-transform duration-300">
               <Lock className="w-3 h-3 mr-2" />
               PREMIUM
@@ -495,11 +497,11 @@ const RecipeCard = ({
             onClick={handleViewDetails}
             disabled={isViewButtonDisabled}
             className={`w-full py-3.5 rounded-2xl font-bold transition-all duration-300 shadow-lg active:scale-[0.98] active:shadow-none group/btn relative overflow-hidden
-              ${
-                isViewButtonDisabled
-                  ? "bg-gray-400 text-gray-700 cursor-not-allowed shadow-gray-200/50" // Premium bo'lmaganlar uchun
-                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-green-200/50 hover:shadow-xl hover:shadow-green-300/50" // Oddiy
-              }`}
+                            ${
+                              isViewButtonDisabled
+                                ? "bg-gray-400 text-gray-700 cursor-not-allowed shadow-gray-200/50" // Premium bo'lmaganlar uchun
+                                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-green-200/50 hover:shadow-xl hover:shadow-green-300/50" // Oddiy
+                            }`}
           >
             <span className="relative flex items-center justify-center gap-2 text-white">
               {isPremium && !isPremiumUser ? (
@@ -516,8 +518,8 @@ const RecipeCard = ({
             </span>
           </button>
 
-          {/* Premium Features Hint (O'zgartirishsiz) */}
-          {isPremium && (
+          {/* Premium Features Hint - FAQAT OBUNA YO'Q BO'LGANLAR UCHUN KO'RINSIN */}
+          {isPremium && !isPremiumUser && (
             <div className="text-xs text-amber-700 text-center bg-amber-50/80 backdrop-blur-sm px-3 py-2 rounded-xl border border-amber-200/50">
               <div className="flex items-center justify-center gap-2">
                 <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
@@ -554,10 +556,11 @@ const RecipeCard = ({
                   }}
                 />
 
-                {/* Premium Badge */}
+                {/* Premium Badge - Modal kichik rasm ustida. Premium bo'lsa ko'rsatilsin, agar foydalanuvchi obunachi bo'lsa qulf belgisi ko'rinmaydi. */}
                 {isPremium && (
                   <div className="absolute top-1 right-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center shadow-lg">
-                    <Lock className="w-2 h-2 mr-1" />
+                    {/* Premium foydalanuvchilar uchun faqat PREMIUM yozuvi qolsin, qulf belgisi olib tashlandi */}
+                    {!isPremiumUser && <Lock className="w-2 h-2 mr-1" />}
                     PREMIUM
                   </div>
                 )}
@@ -664,6 +667,7 @@ const RecipeCard = ({
             </div>
 
             {/* Modal Content - PREMIUM CHEKLOVI */}
+            {/* ASOSIY TUZATISH JOYI: isPremiumUser TRUE bo'lsa, bu blok o'tkazib yuboriladi */}
             {isPremium && !isPremiumUser ? (
               <div className="flex-1 p-6 flex flex-col items-center justify-center bg-gray-50/50">
                 <Lock className="w-16 h-16 text-amber-500 mb-4" />

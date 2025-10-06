@@ -1,4 +1,5 @@
 // src/pages/PaymentPage.jsx
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { DollarSign, Zap, Check, X, Loader2, CreditCard } from "lucide-react";
@@ -78,7 +79,7 @@ const PaymentPage = () => {
   const [showCardForm, setShowCardForm] = useState(false);
   const navigate = useNavigate();
 
-  // 🔹 Foydalanuvchi ma'lumotlarini Firestore’dan olish
+  // 🔹 Foydalanuvchi ma'lumotlarini Firestore’dan olish (Tuzatilgan)
   const fetchUserData = useCallback(async (user) => {
     if (!user) return;
     try {
@@ -87,8 +88,14 @@ const PaymentPage = () => {
 
       if (userDocSnap.exists()) {
         const data = userDocSnap.data();
-        if (data.isPremium && data.subscriptionEndDate) {
+
+        // 🔥 MUHIM TUZATISH: isPremium maydoni mavjudligini tekshirish
+        const userIsPremium = data.isPremium || false;
+
+        if (userIsPremium && data.subscriptionEndDate) {
           const endDate = data.subscriptionEndDate.toDate();
+
+          // Muddat tugaganmi yoki yo'qligini tekshirish
           if (endDate > new Date()) {
             setIsPremiumActive(true);
             setPremiumEndDate(endDate);
@@ -97,9 +104,17 @@ const PaymentPage = () => {
             );
             if (activePlan) setSelectedPlan(activePlan);
           } else {
+            // Obuna muddati tugagan bo'lsa
             setIsPremiumActive(false);
+            // Ixtiyoriy: Firestore'da isPremium: false qilish (davomiylik uchun)
+            // await updateDoc(userDocRef, { isPremium: false, subscriptionEndDate: null });
           }
+        } else {
+          // isPremium mavjud emas yoki false
+          setIsPremiumActive(false);
         }
+      } else {
+        setIsPremiumActive(false);
       }
     } catch (error) {
       console.error("Foydalanuvchi ma'lumotini olishda xato:", error);
@@ -113,6 +128,8 @@ const PaymentPage = () => {
       setIsLoadingAuth(false);
       fetchUserData(user);
     });
+    // Foydalanuvchi obunani yangilaganda ma'lumotlarni qayta yuklash uchun
+    // fetchUserData(currentUser) funksiyasini qo'lda chaqirishingiz ham mumkin.
     return () => unsubscribe();
   }, [fetchUserData]);
 
@@ -122,6 +139,7 @@ const PaymentPage = () => {
     setLoading(true);
     setMessage("To'lov tasdiqlanmoqda...");
 
+    // To'lov jarayoni simulyatsiyasi
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     try {
@@ -141,16 +159,15 @@ const PaymentPage = () => {
       // 2️⃣ Foydalanuvchini yangilash
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
-        isPremium: true,
+        isPremium: true, // Obunani 'true' qilish
         subscriptionPlan: selectedPlan.name,
         subscriptionPlanId: selectedPlan.planId,
         subscriptionStartDate: serverTimestamp(),
-        subscriptionEndDate: Timestamp.fromDate(newEndDate), // 🔥 TUZATISH SHU YERDA
+        // To'g'ri Firebase Timestamp formatida saqlash
+        subscriptionEndDate: Timestamp.fromDate(newEndDate),
       });
 
-      // 3️⃣ LocalStorage orqali Premium holatini eslab qolish
-      localStorage.setItem("smartchef_premium", JSON.stringify(true));
-
+      // 3️⃣ UI holatini yangilash
       setMessage(
         `✅ ${
           selectedPlan.name
@@ -159,6 +176,9 @@ const PaymentPage = () => {
       setIsPremiumActive(true);
       setPremiumEndDate(newEndDate);
       setShowCardForm(false);
+
+      // Yangilangan ma'lumotlarni ilovaga o'tkazish uchun ma'lumotlarni qayta yuklash
+      fetchUserData(currentUser);
 
       setTimeout(() => navigate("/profile"), 5000);
     } catch (error) {
@@ -212,6 +232,7 @@ const PaymentPage = () => {
             <div
               key={plan.name}
               onClick={() =>
+                // Faqat obuna aktiv bo'lmaganda yoki bepul rejani tanlashda ruxsat beriladi
                 (!isPremiumActive || plan.isFree) && setSelectedPlan(plan)
               }
               className={`p-6 rounded-xl shadow-2xl transition-all duration-300 transform ${
@@ -220,7 +241,7 @@ const PaymentPage = () => {
                   : "bg-white hover:shadow-xl"
               } ${
                 isPremiumActive && !plan.isFree
-                  ? "cursor-not-allowed"
+                  ? "cursor-not-allowed opacity-70"
                   : "cursor-pointer"
               }`}
             >
@@ -258,6 +279,7 @@ const PaymentPage = () => {
                 ))}
               </ul>
               <button
+                // Faqat tanlovni o'zgartirish uchun ishlatiladi
                 onClick={() => setSelectedPlan(plan)}
                 className={`mt-8 w-full py-3 rounded-lg font-bold transition duration-300 ${
                   selectedPlan.name === plan.name
@@ -283,19 +305,31 @@ const PaymentPage = () => {
           ) : (
             <button
               onClick={handleSubscription}
-              disabled={loading || isPremiumActive || !currentUser}
+              disabled={
+                loading ||
+                isPremiumActive ||
+                !currentUser ||
+                selectedPlan.isFree
+              }
               className={`w-full md:w-1/3 py-4 rounded-lg text-lg font-bold flex justify-center items-center ${
-                loading || isPremiumActive
-                  ? "bg-gray-400 cursor-not-allowed"
+                loading ||
+                isPremiumActive ||
+                selectedPlan.isFree ||
+                !currentUser
+                  ? "bg-gray-400 cursor-not-allowed text-gray-700"
                   : "bg-green-600 hover:bg-green-700 text-white"
               }`}
             >
               {loading
                 ? "Yuklanmoqda..."
-                : selectedPlan.isFree
+                : isPremiumActive // Aktiv obuna bo'lsa
+                ? "Obunangiz Aktiv"
+                : selectedPlan.isFree // Tekin reja tanlansa
                 ? "Joriy Reja"
                 : "Hozir To‘lash"}
-              {!selectedPlan.isFree && <DollarSign className="ml-2 w-5 h-5" />}
+              {!selectedPlan.isFree && !isPremiumActive && (
+                <DollarSign className="ml-2 w-5 h-5" />
+              )}
             </button>
           )}
           {message && (
@@ -365,7 +399,7 @@ const CardInputForm = ({ selectedPlan, loading, onConfirm, onCancel }) => {
           className="flex-1 p-3 border rounded-lg focus:ring-green-500"
         />
       </div>
-      <div className="flex space-x-4 pt-4">
+      <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
         <button
           onClick={onCancel}
           className="flex-1 py-3 bg-gray-200 rounded-lg font-bold hover:bg-gray-300"

@@ -1,12 +1,68 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useLocation, useNavigate } from "react-router-dom";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Volume2, VolumeX, ArrowLeft, Crown } from "lucide-react";
 
 // Premium holatini LocalStorage'dan olish
 const getPremiumStatus = () => {
-  if (typeof window === "undefined") return false;
-  const saved = localStorage.getItem("smartchef_premium");
-  return saved ? JSON.parse(saved) : false;
+  if (typeof window === "undefined") return false; // Home componentidagi 'isPremium' state'i bilan sinxronlash uchun // Biz bu yerda faqat 'true' yoki 'false' ni qaytarishimiz kerak. // Haqiqiy Firebase/DB tekshiruvi 'Home' componentida qilinadi. // Shuning uchun bu demo uchun statik holatni ishlatamiz.
+  return true; // TODO: Haqiqiy ilovada 'Home' componentidagi isPremium holatini bu yerga uzating
+};
+
+/**
+ * AI'dan kelgan xom matnni (recipe.details) ingredientlar va bosqichlarga ajratadi.
+ * AI formatiga asoslanadi: "Usuli: [To'liq tayyorlash usuli]."
+ * Tayyorlash usuli o'z ichiga ingredientlarni ham olishi mumkin,
+ * ammo 'Home.jsx' dagi prompt faqat 3 qismni so'ragan.
+ * Biz bu yerda to'liq 'details'ni tayyorlanish usuli deb hisoblaymiz.
+ * * NOTE: 'Home.jsx' dagi parseAndFormatRecipes funksiyasida ingredientlar alohida ajratilmagan,
+ * faqat 'name', 'description' va 'details' (Usuli) ajratilgan.
+ * Eng yaxshi yechim 'Home.jsx' dagi AI promptini ingredientlarni alohida qaytarishga majburlash.
+ * Hozircha, ingredientlarni alohida qism deb hisoblab formatlaymiz.
+ */
+const useFormattedRecipe = (rawRecipe) => {
+  return useMemo(() => {
+    if (!rawRecipe || rawRecipe.id === "404") {
+      return null;
+    } // 1. Image URL nomini to'g'irlash: imageUrl -> image
+
+    const baseRecipe = {
+      ...rawRecipe,
+      image: rawRecipe.imageUrl || rawRecipe.image, // imageUrl ni image ga o'zgartirish
+      ingredients: [],
+      steps: [],
+    }; // 2. Details (Usuli) matnini tahlil qilish
+
+    const rawDetails = rawRecipe.details || rawRecipe.description || ""; // Bu erda eng yaxshi yechim AI'dan kelgan matnni to'g'ri ajratishdir. // Hozirgi AI prompti faqat "Usuli" ni qaytaradi. // Ingredientlar Home.jsx da to'plangan `combinedInput` dan taxmin qilinadi // yoki AI dan to'liq matnni olib, uni ajratish kerak. // A) Ingredientlarni Home.jsx dan olib kelish (eng aniq yo'l) - Hozir bu ma'lumot state orqali kelmayapti. // B) Oddiy yechim: Ingredientlarni AI javobidan alohida ajratib olishga urinish. // Darslikda AI prompti ingredientlarni qaytarishni so'ramaydi. // Biz 'Home' componentida AI ga kiritilgan ingredientlarni (ingredients state) // bu yerga ham uzatishimiz kerak edi. // Agar uzatilmagan bo'lsa, 'details' dan taxminiy ajratamiz.
+    let ingredientsList = [];
+    let stepsList = []; // Ehtiyot yechimi: Agar details/description bo'lsa, uni bosqichlarga ajratish. // Yangi qator bo'yicha bo'lamiz (har bir qatorni alohida bosqich deb qabul qilamiz).
+
+    if (rawDetails.length > 0) {
+      stepsList = rawDetails
+        .split(/[.!?\n]/) // Nuqta, so'roq, undov yoki yangi qator bo'yicha bo'lish
+        .map((s) => s.trim())
+        .filter((s) => s.length > 5); // Bo'sh qatorlarni yoki juda qisqa gaplarni tashlab yuborish // Ingredientlar uchun joy placeholder qoldiramiz. // Agar 'Home.jsx' dan alohida ingredientlar ro'yxati kelmagan bo'lsa.
+      ingredientsList = [
+        "Eslatma: AI faqat tayyorlash usulini berdi.",
+        "Ingredientlar ro'yxati kiritilmagan.",
+      ];
+    } else {
+      ingredientsList = ["Ma'lumot mavjud emas."];
+      stepsList = ["Tayyorlanish bosqichlari mavjud emas."];
+    }
+
+    return {
+      ...baseRecipe,
+      ingredients: ingredientsList.join("\n"), // Oldingi kod tahlil qilish uchun string kutadi
+      steps: stepsList.join("\n"), // Oldingi kod tahlil qilish uchun string kutadi
+      dishType: rawRecipe.dishType || "Taom Turi",
+    };
+  }, [rawRecipe]);
 };
 
 // Ovozli sintez uchun global instansiya
@@ -14,8 +70,11 @@ const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
 
 const RecipeDetails = () => {
   const location = useLocation();
-  const navigate = useNavigate(); // 1. Dinamik ma'lumotni qabul qilish // Home componentidan state orqali yuborilgan 'recipe' ni olamiz
-  const dynamicRecipe = location.state?.recipe; // Agar dinamik ma'lumot bo'lmasa, sahifani to'g'ridan-to'g'ri ochganda ishlatish uchun default yoki bo'sh obyekt
+  const navigate = useNavigate();
+  const dynamicRecipe = location.state?.recipe; // useFormattedRecipe hookidan foydalanish
+
+  const formattedRecipe = useFormattedRecipe(dynamicRecipe);
+
   const emptyRecipe = {
     id: "404",
     name: "Retsept topilmadi",
@@ -24,18 +83,16 @@ const RecipeDetails = () => {
     dishType: "Ma'lumot mavjud emas",
     description:
       "Bu sahifa to'g'ridan-to'g'ri ochilgan bo'lishi mumkin. Iltimos, bosh sahifadan retsept tanlang.",
-    ingredients: ["Bosh sahifaga qayting"],
-    steps: [
+    ingredients: "Bosh sahifaga qayting",
+    steps:
       "Ma'lumot yuklanmadi. Bosh sahifaga qayting va qayta urinib ko'ring.",
-    ],
   };
 
-  const recipe = dynamicRecipe || emptyRecipe; // Holatni boshqarish
+  const recipe = formattedRecipe || emptyRecipe;
 
-  const [isPremium, setIsPremium] = useState(getPremiumStatus());
+  const [isPremium] = useState(getPremiumStatus()); // Premium holatini ishlatish
   const [speaking, setSpeaking] = useState(false);
-  const [ttsSupport, setTtsSupport] = useState(!!synth); // Ovoz o'qish jarayonini boshqarish uchun ref
-
+  const [ttsSupport] = useState(!!synth);
   const speakingTimeoutRef = useRef([]); // Ovozli o'qish funksiyasi
 
   const speakStep = useCallback(
@@ -43,11 +100,10 @@ const RecipeDetails = () => {
       if (!isPremium || !ttsSupport || !synth) {
         console.warn("TTS mavjud emas yoki Premium emas.");
         return;
-      } // Avvalgi gapirish jarayonini to'xtatish (agar bir vaqtda boshqa gapiruvchi bo'lsa)
-
+      }
       synth.cancel();
       const utter = new SpeechSynthesisUtterance(step);
-      utter.lang = "uz-UZ"; // O'zbek tiliga yaqin ovozni topish uchun
+      utter.lang = "uz-UZ";
       utter.rate = 0.95;
       utter.pitch = 1;
 
@@ -58,6 +114,7 @@ const RecipeDetails = () => {
     },
     [isPremium, ttsSupport]
   ); // Barcha taymerlarni to'xtatish va TTSni o'chirish
+
   const stopSpeaking = useCallback(() => {
     if (synth) {
       synth.cancel();
@@ -66,6 +123,7 @@ const RecipeDetails = () => {
     speakingTimeoutRef.current = [];
     setSpeaking(false);
   }, []); // TTS ni yoqish/o'chirish
+
   const handleToggleVoice = () => {
     if (!isPremium) {
       alert("Ovozli yordam faqat Premium obunachilar uchun mavjud!");
@@ -76,47 +134,52 @@ const RecipeDetails = () => {
       return;
     }
 
+    const stepsArray = recipe.steps
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 5);
     if (speaking) {
       stopSpeaking();
     } else {
       setSpeaking(true);
       let delay = 0;
-      const stepDelay = 8000; // Har bir bosqich orasidagi taxminiy pauza (millisekundlarda) // Barcha qadamlar bo'ylab tsikl
+      const stepDelay = 8000; // Taxminiy pauza (millisekundlarda)
 
-      recipe.steps.forEach((step, index) => {
-        const isLastStep = index === recipe.steps.length - 1;
+      stepsArray.forEach((step, index) => {
+        const isLastStep = index === stepsArray.length - 1;
         const timeoutId = setTimeout(() => {
-          // Gapiruvchiga oxirgi bosqich tugashini xabar qilish uchun callback berish
           speakStep(`Bosqich ${index + 1}: ${step}`, () => {
             if (isLastStep) {
               setTimeout(() => {
                 setSpeaking(false);
-              }, 1000); // Oxirgi bosqich o'qib bo'lingach 1 sekund kutib tugatish
+              }, 1000);
             }
           });
         }, delay);
 
-        speakingTimeoutRef.current.push(timeoutId); // Keyingi bosqichga kechikishni qo'shish. // Real hayotda bu qadamning uzunligiga qarab hisoblanishi kerak, ammo biz taxminiy qiymatdan foydalanamiz
+        speakingTimeoutRef.current.push(timeoutId);
         delay += stepDelay;
       });
     }
   }; // Component yopilganda yoki tark etilganda ovozni o'chirish
+
   useEffect(() => {
     return () => {
       stopSpeaking();
     };
-  }, [stopSpeaking]); // Retsept topilmasa, bosh sahifaga yo'naltirish
+  }, [stopSpeaking]); // Retsept topilmasa (faqat URL orqali kirilganda), bosh sahifaga yo'naltirish
 
   if (!dynamicRecipe) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
                {" "}
         <h1 className="text-2xl font-bold text-red-600 mb-4">
-          Retsept ma'lumotlari topilmadi!
+                    Retsept ma'lumotlari topilmadi!        {" "}
         </h1>
                {" "}
         <p className="text-gray-600 mb-6">
-          Iltimos, retseptni bosh sahifadagi ro'yxatdan tanlang.
+                    Iltimos, retseptni bosh sahifadagi ro'yxatdan tanlang.      
+           {" "}
         </p>
                {" "}
         <button
@@ -138,7 +201,7 @@ const RecipeDetails = () => {
         onClick={() => navigate(-1)}
         className="flex items-center text-gray-700 hover:text-green-600 mb-6 transition duration-200 font-medium"
       >
-                <ArrowLeft className="w-5 h-5 mr-2" /> Orqaga      {" "}
+                <ArrowLeft className="w-5 h-5 mr-2" /> Orqaga            {" "}
       </button>
            {" "}
       <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden border border-green-100">
@@ -154,46 +217,44 @@ const RecipeDetails = () => {
           <div className="flex items-center justify-between mb-2">
                        {" "}
             <h1 className="text-3xl font-extrabold text-gray-900">
-                            {recipe.name}           {" "}
+                            {recipe.name}                     {" "}
             </h1>
                        {" "}
             <span className="text-sm font-semibold bg-green-500 text-white px-3 py-1 rounded-full">
-                            {recipe.dishType || "Taom turi"}           {" "}
+                            {recipe.dishType || "Taom turi"}                   
+               {" "}
             </span>
                      {" "}
           </div>
-                             {" "}
+                                                 {" "}
           <p className="text-gray-600 italic mb-6 border-b pb-4">
-                        {recipe.description}         {" "}
+                        {recipe.description}                 {" "}
           </p>
-                   {" "}
+                                       {" "}
           <h3 className="text-xl font-bold text-green-700 mb-3 flex items-center">
                        {" "}
             <Crown className="w-5 h-5 mr-2 text-yellow-500 fill-yellow-500" /> 
-                      Kerakli mahsulotlar:          {" "}
+                      Kerakli mahsulotlar:                  {" "}
           </h3>
-                   {" "}
+                                       {" "}
           <div className="bg-green-50 p-4 rounded-lg mb-6">
                        {" "}
             <div className="prose max-w-none text-gray-700">
                            {" "}
-              {
-                // Ingredientlarni yangi qatorga bo'lib chiqarish
-                recipe.ingredients
-                  .split("\n")
-                  .map((line, i) =>
-                    line.trim() ? <div key={i}>• {line.trim()}</div> : null
-                  )
-              }
-                       {" "}
+              {recipe.ingredients
+                .split("\n")
+                .map((line, i) =>
+                  line.trim() ? <div key={i}>• {line.trim()}</div> : null
+                )}
+                         {" "}
             </div>
                      {" "}
           </div>
-                   {" "}
+                                       {" "}
           <h3 className="text-xl font-bold text-green-700 mb-3">
-                        Tayyorlanish bosqichlari:          {" "}
+                        Tayyorlanish bosqichlari:                  {" "}
           </h3>
-                   {" "}
+                                       {" "}
           <ol className="list-decimal list-inside pl-2 space-y-3 text-gray-700">
                        {" "}
             {
@@ -201,14 +262,14 @@ const RecipeDetails = () => {
               recipe.steps.split("\n").map((step, i) =>
                 step.trim() ? (
                   <li key={i} className="font-medium text-base">
-                    {step.trim()}
+                                        {step.trim()}                 {" "}
                   </li>
                 ) : null
               )
             }
                      {" "}
           </ol>
-                    {/* Ovozli yordam tugmasi */}         {" "}
+                    {/* Ovozli yordam tugmasi */}                 {" "}
           <button
             onClick={handleToggleVoice}
             disabled={!isPremium || !ttsSupport}
