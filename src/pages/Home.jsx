@@ -20,10 +20,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { motion } from "framer-motion";
 
-// 🛑 XAVFSIZLIK OGOHLANTIRISHI: API kaliti endi .env faylidan emas, balki bevosita koddan olinadi.
-// O'zingizning API kalitingizni quyidagi qatorga qo'ying.
-const OPENROUTER_API_KEY =
-  "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";
+// 🛑 OPENROUTER_API_KEY butunlay olib tashlandi, u endi Serverless Function'da ishlatiladi!
+// const OPENROUTER_API_KEY = "sk-or-v1-..."; // BU QATOR O'CHIRILDI
 
 // Rasmlar uchun Google Search API chaqiruvi simulyatsiyasi:
 const searchForImage = async (query) => {
@@ -206,7 +204,7 @@ export default function Home() {
     return recipesWithImages;
   };
 
-  // 💡 AI javob olish
+  // 💡 AI javob olish (Endi Serverless Function'ga chaqiruv qiladi)
   const handleSubmit = async () => {
     const combinedInput = ingredients.join(", ");
 
@@ -220,7 +218,8 @@ export default function Home() {
       return;
     }
 
-    // API kaliti tekshiruvi ham olib tashlanadi, chunki u endi serverda
+    // API kaliti tekshiruvi olib tashlandi
+
     setError("");
     setLoading(true);
     setRecipes([]);
@@ -234,21 +233,21 @@ export default function Home() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ combinedInput }), // Serverga faqat kiritilgan ingredientni yuborish
+          body: JSON.stringify({ combinedInput }), // Serverga ingredientni yuborish
         }
       );
 
       if (!response.ok) {
-        const errJson = await response.json();
-        throw new Error(
-          `AI xato: ${errJson.message || "Nomaʼlum xato yuz berdi."}`
-        );
+        const errJson = await response.json().catch(() => ({}));
+        // Serverdan kelgan xabar (masalan, 500 yoki 503)
+        const msg =
+          errJson.message || `${response.status} ${response.statusText}`;
+        throw new Error(`AI xato: ${msg}`);
       }
 
       const data = await response.json();
       const rawText = data?.choices?.[0]?.message?.content || "";
 
-      // ... qolgan mantiq (parsing va limitni yangilash) o'zgarishsiz qoladi
       const parsedRecipes = await parseAndFormatRecipes(rawText);
       setRecipes(parsedRecipes);
 
