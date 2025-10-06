@@ -22,6 +22,7 @@ import {
   arrayRemove,
   increment,
   getDoc,
+  runTransaction,
 } from "firebase/firestore";
 
 /**
@@ -257,9 +258,11 @@ const RecipeCard = ({
     setAiGeneratedData(aiData);
 
     loadUserInteractions();
-  }, [id, currentUserId, recipe]);
+  }, [id, currentUserId, recipe]); // Like/Unlike qilish
 
   // Like/Unlike qilish
+  // src/components/ui/RecipeCard.jsx (handleLikeClick funksiyasi joylashgan qism)
+
   const handleLikeClick = async () => {
     if (!currentUserId) {
       alert("Iltimos, avval tizimga kiring!");
@@ -271,37 +274,43 @@ const RecipeCard = ({
     setLoading(true);
     try {
       const recipeRef = doc(db, "recipes", id);
-      const isLiking = !localIsLiked;
+      const analyticsRef = doc(db, "recipeAnalytics", id); // Analytics hujjatiga havola
 
-      if (isLiking) {
-        await updateDoc(recipeRef, {
-          likedBy: arrayUnion(currentUserId),
-          likesCount: increment(1),
-        });
-        setLocalLikesCount((prev) => prev + 1);
-      } else {
-        await updateDoc(recipeRef, {
-          likedBy: arrayRemove(currentUserId),
-          likesCount: increment(-1),
-        });
-        setLocalLikesCount((prev) => prev - 1);
-      }
+      const isLiking = !localIsLiked;
+      const likeChange = isLiking ? 1 : -1;
+
+      // 🔥 Tranzaksiya: Ikkala hujjatni bir vaqtda yangilash 🔥
+      await runTransaction(db, async (transaction) => {
+        // 1. Recipe hujjatini o'zgartirish
+        transaction.update(recipeRef, {
+          likedBy: isLiking
+            ? arrayUnion(currentUserId)
+            : arrayRemove(currentUserId),
+          likesCount: increment(likeChange),
+        }); // 2. Analytics hujjatini o'zgartirish.
+
+        // Agar analytics hujjati mavjud bo'lmasa, uni yaratish uchun transaction.set(..., { merge: true }) ishlatamiz.
+        transaction.set(
+          analyticsRef,
+          {
+            recipeName: recipeName,
+            likesCount: increment(likeChange),
+            lastUpdated: new Date(),
+          },
+          { merge: true }
+        );
+      }); // UI ni yangilash faqat tranzaksiya muvaffaqiyatli o'tgandan so'ng
 
       setLocalIsLiked(isLiking);
-
-      // Analyticsni yangilash
-      await updateDoc(
-        doc(db, "recipeAnalytics", id),
-        {
-          recipeName: recipeName,
-          likesCount: increment(isLiking ? 1 : -1),
-          lastUpdated: new Date(),
-        },
-        { merge: true }
-      );
+      setLocalLikesCount((prev) => prev + likeChange);
     } catch (error) {
-      console.error("Like qilishda xato:", error);
-      alert("Like qilishda xato yuz berdi. Qayta urinib ko'ring.");
+      console.error(
+        "Like qilishda xato yuz berdi (Transaction Failed):",
+        error
+      );
+      alert(
+        "Like qilishda xato yuz berdi. Iltimos, qayta urinib ko'ring yoki Adminlarga xabar bering."
+      );
     } finally {
       setLoading(false);
     }

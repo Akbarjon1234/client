@@ -77,9 +77,8 @@ const PaymentPage = () => {
   const [isPremiumActive, setIsPremiumActive] = useState(false);
   const [premiumEndDate, setPremiumEndDate] = useState(null);
   const [showCardForm, setShowCardForm] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // 🔹 Foydalanuvchi ma'lumotlarini Firestore’dan olish (Tuzatilgan)
 
-  // 🔹 Foydalanuvchi ma'lumotlarini Firestore’dan olish (Tuzatilgan)
   const fetchUserData = useCallback(async (user) => {
     if (!user) return;
     try {
@@ -87,15 +86,13 @@ const PaymentPage = () => {
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
-        const data = userDocSnap.data();
+        const data = userDocSnap.data(); // 🔥 MUHIM TUZATISH: isPremium maydoni mavjudligini tekshirish
 
-        // 🔥 MUHIM TUZATISH: isPremium maydoni mavjudligini tekshirish
         const userIsPremium = data.isPremium || false;
 
         if (userIsPremium && data.subscriptionEndDate) {
-          const endDate = data.subscriptionEndDate.toDate();
+          const endDate = data.subscriptionEndDate.toDate(); // Muddat tugaganmi yoki yo'qligini tekshirish
 
-          // Muddat tugaganmi yoki yo'qligini tekshirish
           if (endDate > new Date()) {
             setIsPremiumActive(true);
             setPremiumEndDate(endDate);
@@ -105,9 +102,7 @@ const PaymentPage = () => {
             if (activePlan) setSelectedPlan(activePlan);
           } else {
             // Obuna muddati tugagan bo'lsa
-            setIsPremiumActive(false);
-            // Ixtiyoriy: Firestore'da isPremium: false qilish (davomiylik uchun)
-            // await updateDoc(userDocRef, { isPremium: false, subscriptionEndDate: null });
+            setIsPremiumActive(false); // Ixtiyoriy: Firestore'da isPremium: false qilish (davomiylik uchun) // await updateDoc(userDocRef, { isPremium: false, subscriptionEndDate: null });
           }
         } else {
           // isPremium mavjud emas yoki false
@@ -119,33 +114,27 @@ const PaymentPage = () => {
     } catch (error) {
       console.error("Foydalanuvchi ma'lumotini olishda xato:", error);
     }
-  }, []);
+  }, []); // 🔹 Auth kuzatuv
 
-  // 🔹 Auth kuzatuv
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setIsLoadingAuth(false);
       fetchUserData(user);
-    });
-    // Foydalanuvchi obunani yangilaganda ma'lumotlarni qayta yuklash uchun
-    // fetchUserData(currentUser) funksiyasini qo'lda chaqirishingiz ham mumkin.
+    }); // Foydalanuvchi obunani yangilaganda ma'lumotlarni qayta yuklash uchun // fetchUserData(currentUser) funksiyasini qo'lda chaqirishingiz ham mumkin.
     return () => unsubscribe();
-  }, [fetchUserData]);
+  }, [fetchUserData]); // 🔹 To‘lovni tasdiqlash (simulyatsiya)
 
-  // 🔹 To‘lovni tasdiqlash (simulyatsiya)
   const handlePaymentConfirmation = async () => {
     if (!currentUser || selectedPlan.isFree || isPremiumActive) return;
     setLoading(true);
-    setMessage("To'lov tasdiqlanmoqda...");
+    setMessage("To'lov tasdiqlanmoqda..."); // To'lov jarayoni simulyatsiyasi
 
-    // To'lov jarayoni simulyatsiyasi
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     try {
-      const newEndDate = calculateEndDate(null, selectedPlan.planId);
+      const newEndDate = calculateEndDate(null, selectedPlan.planId); // 1️⃣ To‘lov yozuvi
 
-      // 1️⃣ To‘lov yozuvi
       await addDoc(collection(db, "payments"), {
         userId: currentUser.uid,
         userName: currentUser.displayName || currentUser.email,
@@ -154,20 +143,17 @@ const PaymentPage = () => {
         amount: selectedPlan.price,
         status: "completed",
         createdAt: serverTimestamp(),
-      });
+      }); // 2️⃣ Foydalanuvchini yangilash
 
-      // 2️⃣ Foydalanuvchini yangilash
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
         isPremium: true, // Obunani 'true' qilish
         subscriptionPlan: selectedPlan.name,
         subscriptionPlanId: selectedPlan.planId,
-        subscriptionStartDate: serverTimestamp(),
-        // To'g'ri Firebase Timestamp formatida saqlash
+        subscriptionStartDate: serverTimestamp(), // To'g'ri Firebase Timestamp formatida saqlash
         subscriptionEndDate: Timestamp.fromDate(newEndDate),
-      });
+      }); // 3️⃣ UI holatini yangilash
 
-      // 3️⃣ UI holatini yangilash
       setMessage(
         `✅ ${
           selectedPlan.name
@@ -175,9 +161,8 @@ const PaymentPage = () => {
       );
       setIsPremiumActive(true);
       setPremiumEndDate(newEndDate);
-      setShowCardForm(false);
+      setShowCardForm(false); // Yangilangan ma'lumotlarni ilovaga o'tkazish uchun ma'lumotlarni qayta yuklash
 
-      // Yangilangan ma'lumotlarni ilovaga o'tkazish uchun ma'lumotlarni qayta yuklash
       fetchUserData(currentUser);
 
       setTimeout(() => navigate("/profile"), 5000);
@@ -187,9 +172,8 @@ const PaymentPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }; // 🔹 Asosiy to‘lov bosilganda
 
-  // 🔹 Asosiy to‘lov bosilganda
   const handleSubscription = () => {
     if (!currentUser) {
       setMessage("Obunani faollashtirish uchun tizimga kiring.");
@@ -207,27 +191,37 @@ const PaymentPage = () => {
   if (isLoadingAuth) {
     return (
       <>
+               {" "}
         <div className="flex justify-center items-center h-[calc(100vh-80px)]">
-          <Loader2 className="w-8 h-8 animate-spin text-green-600 mr-2" />
-          <p className="text-xl text-gray-600">Ma'lumotlar yuklanmoqda...</p>
+                   {" "}
+          <Loader2 className="w-8 h-8 animate-spin text-green-600 mr-2" />     
+             {" "}
+          <p className="text-xl text-gray-600">Ma'lumotlar yuklanmoqda...</p>   
+             {" "}
         </div>
+             {" "}
       </>
     );
   }
 
   return (
     <>
+           {" "}
       <div className="max-w-6xl mx-auto p-4 md:p-8 my-10">
+               {" "}
         <h1 className="text-4xl font-extrabold text-gray-900 mb-2 flex items-center">
-          <Zap className="w-8 h-8 text-green-600 mr-3 fill-green-100" />
-          Obuna Rejalari
+                   {" "}
+          <Zap className="w-8 h-8 text-green-600 mr-3 fill-green-100" />       
+            Obuna Rejalari        {" "}
         </h1>
+               {" "}
         <p className="text-xl text-gray-600 mb-10">
-          Siz uchun eng mos rejani tanlang va cheklovlarsiz foydalaning.
+                    Siz uchun eng mos rejani tanlang va cheklovlarsiz
+          foydalaning.        {" "}
         </p>
-
-        {/* Rejalar ro‘yxati */}
+                {/* Rejalar ro‘yxati */}       {" "}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                   {" "}
           {subscriptionPlans.map((plan) => (
             <div
               key={plan.name}
@@ -245,27 +239,39 @@ const PaymentPage = () => {
                   : "cursor-pointer"
               }`}
             >
+                           {" "}
               <div
                 className={`p-3 rounded-t-xl ${plan.color} text-white text-center`}
               >
-                <h3 className="text-2xl font-bold">{plan.name}</h3>
+                               {" "}
+                <h3 className="text-2xl font-bold">{plan.name}</h3>             {" "}
               </div>
+                           {" "}
               <div className="py-8 text-center border-b border-gray-100">
+                               {" "}
                 <span className="text-5xl font-extrabold text-gray-900">
-                  {plan.isFree ? "Tekin" : `$${plan.price.toFixed(2)}`}
+                                   {" "}
+                  {plan.isFree ? "Tekin" : `$${plan.price.toFixed(2)}`}         
+                       {" "}
                 </span>
+                               {" "}
                 <span className="text-lg font-medium text-gray-500 ml-2">
-                  /{plan.billing}
+                                    /{plan.billing}               {" "}
                 </span>
+                             {" "}
               </div>
+                           {" "}
               <ul className="mt-6 space-y-4">
+                               {" "}
                 {plan.features.map((f, i) => (
                   <li key={i} className="flex items-start">
+                                       {" "}
                     {f.available ? (
                       <Check className="w-5 h-5 text-green-500 mt-1 mr-2" />
                     ) : (
                       <X className="w-5 h-5 text-gray-400 mt-1 mr-2" />
                     )}
+                                       {" "}
                     <span
                       className={`${
                         f.available
@@ -273,13 +279,15 @@ const PaymentPage = () => {
                           : "text-gray-500 line-through"
                       } font-medium`}
                     >
-                      {f.text}
+                                            {f.text}                   {" "}
                     </span>
+                                     {" "}
                   </li>
                 ))}
+                             {" "}
               </ul>
-              <button
-                // Faqat tanlovni o'zgartirish uchun ishlatiladi
+                           {" "}
+              <button // Faqat tanlovni o'zgartirish uchun ishlatiladi
                 onClick={() => setSelectedPlan(plan)}
                 className={`mt-8 w-full py-3 rounded-lg font-bold transition duration-300 ${
                   selectedPlan.name === plan.name
@@ -287,14 +295,18 @@ const PaymentPage = () => {
                     : "bg-gray-200 text-gray-800 hover:bg-gray-300"
                 }`}
               >
-                {selectedPlan.name === plan.name ? "Tanlangan" : "Tanlash"}
+                               {" "}
+                {selectedPlan.name === plan.name ? "Tanlangan" : "Tanlash"}     
+                       {" "}
               </button>
+                         {" "}
             </div>
           ))}
+                 {" "}
         </div>
-
-        {/* To‘lov qismi */}
+                {/* To‘lov qismi */}       {" "}
         <div className="mt-12 p-8 bg-white rounded-xl shadow-2xl border-t-4 border-green-500">
+                   {" "}
           {showCardForm ? (
             <CardInputForm
               selectedPlan={selectedPlan}
@@ -320,6 +332,7 @@ const PaymentPage = () => {
                   : "bg-green-600 hover:bg-green-700 text-white"
               }`}
             >
+                           {" "}
               {loading
                 ? "Yuklanmoqda..."
                 : isPremiumActive // Aktiv obuna bo'lsa
@@ -327,22 +340,28 @@ const PaymentPage = () => {
                 : selectedPlan.isFree // Tekin reja tanlansa
                 ? "Joriy Reja"
                 : "Hozir To‘lash"}
+                           {" "}
               {!selectedPlan.isFree && !isPremiumActive && (
                 <DollarSign className="ml-2 w-5 h-5" />
               )}
+                         {" "}
             </button>
           )}
+                   {" "}
           {message && (
             <p
               className={`mt-4 font-medium ${
                 message.includes("❌") ? "text-red-500" : "text-green-600"
               }`}
             >
-              {message}
+                            {message}           {" "}
             </p>
           )}
+                 {" "}
         </div>
+             {" "}
       </div>
+         {" "}
     </>
   );
 };
@@ -360,15 +379,19 @@ const CardInputForm = ({ selectedPlan, loading, onConfirm, onCancel }) => {
 
   return (
     <div className="space-y-4 max-w-lg">
+           {" "}
       <div className="flex items-center bg-gray-100 p-3 rounded-lg border">
-        <CreditCard className="w-5 h-5 mr-3 text-blue-600" />
+                <CreditCard className="w-5 h-5 mr-3 text-blue-600" />       {" "}
         <p className="font-semibold text-gray-700">
-          Jami to‘lov:
+                    Jami to‘lov:          {" "}
           <span className="text-green-600 ml-2 font-bold">
-            ${selectedPlan.price.toFixed(2)}
+                        ${selectedPlan.price.toFixed(2)}         {" "}
           </span>
+                 {" "}
         </p>
+             {" "}
       </div>
+           {" "}
       <input
         type="text"
         placeholder="Karta raqami"
@@ -378,7 +401,9 @@ const CardInputForm = ({ selectedPlan, loading, onConfirm, onCancel }) => {
         }
         className="w-full p-3 border rounded-lg focus:ring-green-500"
       />
-      <div className="flex space-x-4">
+      {/* 🔥 O'zgartirish: space-x-4 o'rniga space-y-4 ishlatildi */}     {" "}
+      <div className="space-y-4">
+               {" "}
         <input
           type="text"
           placeholder="MM/YY"
@@ -387,8 +412,9 @@ const CardInputForm = ({ selectedPlan, loading, onConfirm, onCancel }) => {
             .replace(/(.{2})/, "$1/")
             .slice(0, 5)}
           onChange={(e) => setExpiry(e.target.value)}
-          className="flex-1 p-3 border rounded-lg focus:ring-green-500"
+          className="w-full p-3 border rounded-lg focus:ring-green-500"
         />
+               {" "}
         <input
           type="text"
           placeholder="CVC"
@@ -396,16 +422,20 @@ const CardInputForm = ({ selectedPlan, loading, onConfirm, onCancel }) => {
           onChange={(e) =>
             setCvc(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))
           }
-          className="flex-1 p-3 border rounded-lg focus:ring-green-500"
+          className="w-full p-3 border rounded-lg focus:ring-green-500"
         />
+             {" "}
       </div>
+           {" "}
       <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
+               {" "}
         <button
           onClick={onCancel}
           className="flex-1 py-3 bg-gray-200 rounded-lg font-bold hover:bg-gray-300"
         >
-          Bekor Qilish
+                    Bekor Qilish        {" "}
         </button>
+               {" "}
         <button
           onClick={onConfirm}
           disabled={loading || cardNumber.length < 16 || cvc.length < 3}
@@ -413,9 +443,11 @@ const CardInputForm = ({ selectedPlan, loading, onConfirm, onCancel }) => {
             loading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"
           }`}
         >
-          {loading ? "To‘lov..." : "To‘lovni Tasdiqlash"}
+                    {loading ? "To‘lov..." : "To‘lovni Tasdiqlash"}       {" "}
         </button>
+             {" "}
       </div>
+         {" "}
     </div>
   );
 };

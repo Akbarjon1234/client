@@ -13,12 +13,12 @@ import {
   BookMarked,
   Zap,
 } from "lucide-react";
-// 🔥 Link ni import qilish
 import { Link } from "react-router-dom";
-// Cart Context import qilindi
 import { useCart } from "../../context/CartContext";
 
-// VAQTINCHALIK AUTH MANTIQI:
+// 🔥 LOGO IMPORT
+import appLogo from "/public/logo.png";
+
 const isAuthenticated = true;
 
 const navItems = [
@@ -27,16 +27,11 @@ const navItems = [
   { name: "E-Doʻkon", icon: ShoppingCart, path: "/store" },
   { name: "Sogʻlom Reja", icon: TrendingUp, path: "/health" },
   { name: "Premium", icon: Zap, path: "/pay" },
-  {
-    name: "Izohlar",
-    icon: BookMarked,
-    path: "/documentation",
-  },
+  { name: "Izohlar", icon: BookMarked, path: "/documentation" },
 ];
 
 const Header = () => {
   const { cartItemCount } = useCart();
-
   const [activePath, setActivePath] = React.useState("/");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
@@ -49,24 +44,27 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-white shadow-md transition duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo va Brend Nomi - <a> ni <Link> ga almashtirdik */}
+        <div className="flex justify-between items-center h-20">
+          {/* Logo */}
           <Link
-            to="/" // 🔥 href o'rniga to ishlatildi
-            className="flex items-center transition duration-200 hover:scale-[1.03]"
+            to="/"
+            className="flex items-center transition duration-400 hover:scale-105"
             onClick={() => setActivePath("/")}
           >
-            <span className="text-2xl font-black text-green-600">Smart</span>
-            <span className="text-2xl font-light text-gray-900">Shef</span>
+            {/* 🔥 Logo kattalashtirildi */}
+            <img
+              src={appLogo}
+              alt="SmartCheff Logo"
+              className="h-30 w-auto drop-shadow-md"
+            />
           </Link>
 
-          {/* Desktop Navigatsiya Elementlari */}
+          {/* Desktop Navigatsiya */}
           <nav className="hidden md:flex space-x-6">
             {navItems.map((item, index) => (
-              // 🔥 <a> ni <Link> ga almashtirdik
               <Link
                 key={index}
-                to={item.path} // 🔥 href o'rniga to ishlatildi
+                to={item.path}
                 onClick={() => setActivePath(item.path)}
                 className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 
                   ${
@@ -81,28 +79,24 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Auth Tugmalari / Profil Ikonkasi */}
+          {/* Profil / Savat / Login */}
           <div className="flex items-center space-x-3">
             {isAuthenticated ? (
               <>
-                {/* Savat Ikonkasi - <a> ni <Link> ga almashtirdik */}
                 <Link
-                  to="/cart" // 🔥 href o'rniga to ishlatildi
+                  to="/cart"
                   className="p-2 rounded-full text-gray-500 hover:text-green-600 hover:bg-gray-50 relative transition duration-200"
-                  aria-label="Savat"
                 >
                   <ShoppingCart className="w-6 h-6" />
-
                   {showCartBadge && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full ring-2 ring-white">
+                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full ring-2 ring-white">
                       {cartItemCount}
                     </span>
                   )}
                 </Link>
 
-                {/* Profil Ikonkasi - <a> ni <Link> ga almashtirdik */}
                 <Link
-                  to="/profile" // 🔥 href o'rniga to ishlatildi
+                  to="/profile"
                   className="p-2 rounded-full text-white bg-green-600 hover:bg-green-700 transition duration-200 shadow-md"
                 >
                   <User className="w-6 h-6" />
@@ -110,18 +104,15 @@ const Header = () => {
               </>
             ) : (
               <div className="flex space-x-2">
-                {/* Kirish Tugmasi - <a> ni <Link> ga almashtirdik */}
                 <Link
-                  to="/login" // 🔥 href o'rniga to ishlatildi
+                  to="/login"
                   className="px-3 py-2 flex items-center text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 transition duration-200"
                 >
                   <LogIn className="w-5 h-5 mr-1 hidden md:block" />
                   Kirish
                 </Link>
-
-                {/* Ro'yxatdan O'tish Tugmasi - <a> ni <Link> ga almashtirdik */}
                 <Link
-                  to="/register" // 🔥 href o'rniga to ishlatildi
+                  to="/register"
                   className="px-3 py-2 flex items-center text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-md transition duration-200"
                 >
                   <UserPlus className="w-5 h-5 mr-1 hidden md:block" />
@@ -130,10 +121,9 @@ const Header = () => {
               </div>
             )}
 
-            {/* Mobil Menyuni ochish tugmasi */}
+            {/* Mobil menyu tugmasi */}
             <button
               className="md:hidden p-2 text-gray-500 hover:text-gray-900"
-              aria-label="Menyu"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <Menu className="w-6 h-6" />
@@ -142,14 +132,13 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Mobil Menyu (Pastga ochiluvchi qism) */}
+      {/* Mobil menyu */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-gray-50 border-t border-gray-100 py-2">
           {navItems.map((item, index) => (
-            // 🔥 <a> ni <Link> ga almashtirdik
             <Link
               key={index}
-              to={item.path} // 🔥 href o'rniga to ishlatildi
+              to={item.path}
               onClick={() => {
                 setActivePath(item.path);
                 setIsMobileMenuOpen(false);

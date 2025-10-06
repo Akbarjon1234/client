@@ -23,6 +23,8 @@ import PaymentPage from "./pages/PaymentPage";
 import Layout from "./components/layout/Layout";
 import Settings from "./pages/Settings";
 
+import { Toaster } from "react-hot-toast";
+
 // === Fallback sahifa ===
 const NotFound = () => (
   <div className="text-center py-20">
@@ -39,7 +41,7 @@ const App = () => {
       <Router>
                {" "}
         <AnimatePresence mode="wait">
-                   {" "}
+                    <Toaster />
           <CartProvider>
                        {" "}
             <Routes>
@@ -56,10 +58,9 @@ const App = () => {
                 <Route element={<Layout />}>
                                         <Route index element={<Home />} />{" "}
                   {/* Asosiy sahifa "/" */}                     {" "}
-                  <Route path="/recipe/:id" element={<RecipeDetail />} />     
-                                 {" "}
-                  <Route path="/recipes" element={<Recipes />} />               
-                       {" "}
+                  <Route path="/recipe/:id" element={<RecipeDetail />} />       
+                                <Route path="/recipes" element={<Recipes />} /> 
+                                     {" "}
                   <Route path="/documentation" element={<Documentation />} />   
                                     <Route path="/store" element={<Store />} /> 
                                       <Route path="/cart" element={<Cart />} /> 
