@@ -260,9 +260,7 @@ const RecipeCard = ({
     loadUserInteractions();
   }, [id, currentUserId, recipe]); // Like/Unlike qilish
 
-  // Like/Unlike qilish
-  // src/components/ui/RecipeCard.jsx (handleLikeClick funksiyasi joylashgan qism)
-
+  // Like/Unlike qilish - Xatoni tuzatish uchun yangilangan funksiya: Optimistic Update va Rollback qo'shildi!
   const handleLikeClick = async () => {
     if (!currentUserId) {
       alert("Iltimos, avval tizimga kiring!");
@@ -272,12 +270,17 @@ const RecipeCard = ({
     if (loading) return;
 
     setLoading(true);
+
+    // 🔥 1. OPTIMISTIC UPDATE: UI ni birdaniga yangilash (tezkor javob uchun)
+    const isLiking = !localIsLiked;
+    const likeChange = isLiking ? 1 : -1;
+
+    setLocalIsLiked(isLiking);
+    setLocalLikesCount((prev) => prev + likeChange);
+
     try {
       const recipeRef = doc(db, "recipes", id);
-      const analyticsRef = doc(db, "recipeAnalytics", id); // Analytics hujjatiga havola
-
-      const isLiking = !localIsLiked;
-      const likeChange = isLiking ? 1 : -1;
+      const analyticsRef = doc(db, "recipeAnalytics", id);
 
       // 🔥 Tranzaksiya: Ikkala hujjatni bir vaqtda yangilash 🔥
       await runTransaction(db, async (transaction) => {
@@ -287,9 +290,9 @@ const RecipeCard = ({
             ? arrayUnion(currentUserId)
             : arrayRemove(currentUserId),
           likesCount: increment(likeChange),
-        }); // 2. Analytics hujjatini o'zgartirish.
+        });
 
-        // Agar analytics hujjati mavjud bo'lmasa, uni yaratish uchun transaction.set(..., { merge: true }) ishlatamiz.
+        // 2. Analytics hujjatini o'zgartirish/yaratish.
         transaction.set(
           analyticsRef,
           {
@@ -299,19 +302,24 @@ const RecipeCard = ({
           },
           { merge: true }
         );
-      }); // UI ni yangilash faqat tranzaksiya muvaffaqiyatli o'tgandan so'ng
-
-      setLocalIsLiked(isLiking);
-      setLocalLikesCount((prev) => prev + likeChange);
+      });
+      // Muvaffaqiyatli yakunlandi. UI holati optimistik tarzda yangilangan.
     } catch (error) {
       console.error(
         "Like qilishda xato yuz berdi (Transaction Failed):",
         error
       );
+
+      // 🔥 2. ROLLBACK: Xato yuz berganda UI holatini avvalgisiga qaytarish 🔥
+      setLocalIsLiked(!isLiking);
+      setLocalLikesCount((prev) => prev - likeChange);
+
+      // Xato xabarini chiqarish
       alert(
         "Like qilishda xato yuz berdi. Iltimos, qayta urinib ko'ring yoki Adminlarga xabar bering."
       );
     } finally {
+      // 3. Qanday holat bo'lishidan qat'iy nazar loadingni o'chirish
       setLoading(false);
     }
   };
@@ -513,7 +521,7 @@ const RecipeCard = ({
             onClick={handleViewDetails}
             disabled={isViewButtonDisabled}
             className={`w-full py-3.5 rounded-2xl font-bold transition-all duration-300 shadow-lg active:scale-[0.98] active:shadow-none group/btn relative overflow-hidden
-							${
+              ${
                 isViewButtonDisabled
                   ? "bg-gray-400 text-gray-700 cursor-not-allowed shadow-gray-200/50" // Premium bo'lmaganlar uchun
                   : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-green-200/50 hover:shadow-xl hover:shadow-green-300/50" // Oddiy
